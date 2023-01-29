@@ -10,7 +10,10 @@ from skimage import draw
 
 from numba import njit, prange
 
+from dcmrtstruct2nii.exceptions import ContourOutOfBoundsException
+
 numba_exists = find_spec("numba") is not None
+
 
 def use_numba_if_installed(dec, condition):
     def decorator(func):
@@ -18,7 +21,9 @@ def use_numba_if_installed(dec, condition):
             # Return the function unchanged, not decorated.
             return func
         return dec(func)
+
     return decorator
+
 
 def scale_information_tuple(information_tuple: tuple, xy_scaling_factor: int, out_type: type, up: bool = True):
     scale_array = np.array([xy_scaling_factor, xy_scaling_factor, 1])
@@ -28,6 +33,7 @@ def scale_information_tuple(information_tuple: tuple, xy_scaling_factor: int, ou
         information_tuple = np.array(information_tuple) / scale_array
 
     return out_type(information_tuple[0]), out_type(information_tuple[1]), out_type(information_tuple[2])
+
 
 @njit
 def _get_transform_matrix(spacing, direction):
@@ -41,11 +47,12 @@ def _get_transform_matrix(spacing, direction):
 
     return m_PhysicalPointToIndex
 
+
 @njit
 def xor_update_np_mask(np_mask, filled_poly, z, mask_foreground, mask_background):
     overlay = np.logical_xor(np_mask[z, :, :], filled_poly)
     np_mask[z, :, :] = overlay
-    #np_mask[z, :, :] = np.where(overlay, mask_foreground, mask_background)
+
 
 @njit
 def scale_xy_coordinates(pts, xy_scaling_factor):
@@ -64,12 +71,13 @@ def _transform_physical_point_to_continuous_index(coords, m_PhysicalPointToIndex
 
     # pts_intermediary = np.subtract(coords, origins[:coords.shape[0]])
     pts_intermediary = np.empty_like(coords)
-    pts_intermediary[:,0] = coords[:,0] - origin[0]
+    pts_intermediary[:, 0] = coords[:, 0] - origin[0]
     pts_intermediary[:, 1] = coords[:, 1] - origin[1]
     pts_intermediary[:, 2] = coords[:, 2] - origin[2]
 
     idxs = pts_intermediary @ m_PhysicalPointToIndex
     return idxs
+
 
 class DcmPatientCoords2Mask:
     def __init__(self):
@@ -100,16 +108,13 @@ class DcmPatientCoords2Mask:
 
             # transform points to continous index
             pts = _transform_physical_point_to_continuous_index(coords,
-                                                                   m_PhysicalPointToIndex=self.m_PhysicalPointToIndex,
-                                                                   origin=self.origin)
+                                                                m_PhysicalPointToIndex=self.m_PhysicalPointToIndex,
+                                                                origin=self.origin)
             z = int(round(pts[0, 2]))
             try:
                 scale_xy_coordinates(pts, xy_scaling_factor=xy_scaling_factor)
-                filled_poly = draw.polygon2mask((shape[1], shape[0]), pts[:,1::-1])
-
-                xor_update_np_mask(np_mask=np_mask,filled_poly=filled_poly,z=z,mask_background=mask_background,mask_foreground=mask_foreground)
-             #   locks[z].release()
-
+                filled_poly = draw.polygon2mask((shape[1], shape[0]), pts[:, 1::-1])
+                xor_update_np_mask(np_mask=np_mask, filled_poly=filled_poly, z=z, mask_background=mask_background, mask_foreground=mask_foreground)
             except IndexError:
                 # if this is triggered the contour is out of bounds
                 raise ContourOutOfBoundsException()
@@ -135,4 +140,3 @@ class DcmPatientCoords2Mask:
         final_mask.SetSpacing(spacing)
 
         return final_mask
-
