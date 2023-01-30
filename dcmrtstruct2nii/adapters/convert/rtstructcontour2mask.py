@@ -1,28 +1,11 @@
-import random
-import threading
-from importlib.util import find_spec
 import logging
-from multiprocessing.pool import ThreadPool
 
 import SimpleITK as sitk
 import numpy as np
+from numba import njit
 from skimage import draw
 
-from numba import njit, prange
-
 from dcmrtstruct2nii.exceptions import ContourOutOfBoundsException
-
-numba_exists = find_spec("numba") is not None
-
-
-def use_numba_if_installed(dec, condition):
-    def decorator(func):
-        if not condition:
-            # Return the function unchanged, not decorated.
-            return func
-        return dec(func)
-
-    return decorator
 
 
 def scale_information_tuple(information_tuple: tuple, xy_scaling_factor: int, out_type: type, up: bool = True):
@@ -32,7 +15,7 @@ def scale_information_tuple(information_tuple: tuple, xy_scaling_factor: int, ou
     else:
         information_tuple = np.array(information_tuple) / scale_array
 
-    return out_type(information_tuple[0]), out_type(information_tuple[1]), out_type(information_tuple[2])
+    return tuple([out_type(info) for info in information_tuple])
 
 
 @njit
