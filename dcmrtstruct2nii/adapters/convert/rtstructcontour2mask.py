@@ -74,7 +74,7 @@ class DcmPatientCoords2Mask:
 
         shape = scale_information_tuple(information_tuple=dicom_image.GetSize(), xy_scaling_factor=xy_scaling_factor, up=True, out_type=int)
 
-        np_mask = np.empty(list(reversed(shape)), dtype=np.uint8)
+        np_mask = np.empty(list(reversed(shape)))
         for contour in rtstruct_contours:
             if contour['type'].upper() not in ['CLOSED_PLANAR', 'INTERPOLATED_PLANAR']:
                 if 'name' in contour:
