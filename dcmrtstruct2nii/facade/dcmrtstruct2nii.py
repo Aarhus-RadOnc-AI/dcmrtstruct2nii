@@ -119,11 +119,14 @@ def dcmrtstruct2nii(rtstruct_file,
             mask_filename = filename_converter.convert(f'mask_{rtstruct["name"]}')
 
             if crop_mask:  # Crop and write both image and crop meta
-                mask, crop_meta = crop_mask_to_roi(mask_as_img=mask,
-                                                   xy_scaling_factor=xy_scaling_factor)
-                nii_output_adapter.write(mask, f'{output_path}{mask_filename}', gzip)
-                with open(f'{output_path}{mask_filename}' + ".json", "w") as f:
-                    f.write(json.dumps(crop_meta))
+                try:
+                    mask, crop_meta = crop_mask_to_roi(mask_as_img=mask,
+                                                       xy_scaling_factor=xy_scaling_factor)
+                    nii_output_adapter.write(mask, f'{output_path}{mask_filename}', gzip)
+                    with open(f'{output_path}{mask_filename}' + ".json", "w") as f:
+                        f.write(json.dumps(crop_meta))
+                except Exception as e:
+                    print("Contour could not be cropped - skipping")
             else:  # Only write image and do not crop
                 nii_output_adapter.write(mask, f'{output_path}{mask_filename}', gzip)
 
