@@ -1,3 +1,5 @@
+import traceback
+
 from dcmrtstruct2nii.cli.wrapper.patchedcommand import PatchedCommand
 from dcmrtstruct2nii.exceptions import InvalidFileFormatException, PathDoesNotExistException, UnsupportedTypeException
 from dcmrtstruct2nii.facade.dcmrtstruct2nii import dcmrtstruct2nii
@@ -16,8 +18,6 @@ class Convert(PatchedCommand):
         {--g|gzip=?true : Optional, gzip output .nii}
         {--s|structures=? : Optional, list of structures that need to be converted, example: Patient, Spinal, Dose-1}
         {--i|series-id=? : Optional, the Series ID of the image DICOMs. Use to exclude other series in the same directory}
-        {--f|mask-foreground-color=?255 : Optional, the foreground color used for the mask. Must be between 0-255.}
-        {--b|mask-background-color=?0 : Optional, the background color used for the mask. Must be between 0-255.}
         {--c|convert-original-dicom=?true : Optional, convert the original dicom to nii}
         {--a|xy-scaling-factor=?1 : Optional, Increase pixel density with this factor in xy. Must be 1-5.}
         {--x|crop-mask=?false : Optional, Crops masks to ROI - saves space with high xy scaling factors}
@@ -32,9 +32,6 @@ class Convert(PatchedCommand):
 
         gzip = self._castToBool(self.option('gzip'))
         structures = self.option('structures')
-
-        mask_foreground = int(self.option('mask-foreground-color'))
-        mask_background = int(self.option('mask-background-color'))
 
         convert_original_dicom = self._castToBool(self.option('convert-original-dicom'))
 
@@ -55,7 +52,12 @@ class Convert(PatchedCommand):
             return -1
 
         try:
-            dcmrtstruct2nii(rtstruct_file, dicom_file, output_path, structures, gzip, mask_background, mask_foreground, convert_original_dicom, series_id,
+            dcmrtstruct2nii(rtstruct_file, dicom_file, output_path, structures, gzip, convert_original_dicom, series_id,
                             xy_scaling_factor=xy_scaling_factor, crop_mask=crop_mask)
         except (InvalidFileFormatException, PathDoesNotExistException, UnsupportedTypeException, ValueError,) as e:
             logging.error(str(e))
+            print(traceback.format_exc())
+
+        except Exception as e:
+            print(traceback.format_exc())
+            raise e
