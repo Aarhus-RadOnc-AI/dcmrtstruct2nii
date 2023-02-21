@@ -1,17 +1,12 @@
-import json
 import logging
 import os.path
 
-import numpy as np
-
-from dcmrtstruct2nii.adapters.convert.crop_mask import crop_mask_to_roi
 from dcmrtstruct2nii.adapters.convert.filenameconverter import FilenameConverter
-from dcmrtstruct2nii.adapters.convert.rtstructcontour2mask import DcmPatientCoords2Mask, scale_information_tuple
+from dcmrtstruct2nii.adapters.convert.rtstructcontour2mask import DcmPatientCoords2Mask
 from dcmrtstruct2nii.adapters.input.contours.rtstructinputadapter import RtStructInputAdapter
 from dcmrtstruct2nii.adapters.input.image.dcminputadapter import DcmInputAdapter
 from dcmrtstruct2nii.adapters.output.niioutputadapter import NiiOutputAdapter
 from dcmrtstruct2nii.exceptions import PathDoesNotExistException, ContourOutOfBoundsException
-import SimpleITK as sitk
 
 
 def list_rt_structs(rtstruct_file):
@@ -34,8 +29,6 @@ def dcmrtstruct2nii(rtstruct_file,
                     output_path,
                     structures=None,
                     gzip=True,
-                    mask_background_value=0,
-                    mask_foreground_value=255,
                     convert_original_dicom=True,
                     series_id=None,  # noqa: C901 E501
                     xy_scaling_factor=1,
@@ -65,11 +58,6 @@ def dcmrtstruct2nii(rtstruct_file,
     if not os.path.exists(dicom_file):
         raise PathDoesNotExistException(f'DICOM path does not exists: {dicom_file}')
 
-    if mask_background_value < 0 or mask_background_value > 255:
-        raise ValueError(f'Invalid value for mask_background_value: {mask_background_value}, must be between 0 and 255')
-
-    if mask_foreground_value < 0 or mask_foreground_value > 255:
-        raise ValueError(f'Invalid value for mask_foreground_value: {mask_foreground_value}, must be between 0 and 255')
 
     if structures is None:
         structures = []
@@ -108,27 +96,15 @@ def dcmrtstruct2nii(rtstruct_file,
             try:
                 mask = dcm_patient_coords_to_mask.convert(rtstruct['sequence'],
                                                           dicom_image,
-                                                          mask_background_value,
-                                                          mask_foreground_value,
-                                                          xy_scaling_factor=xy_scaling_factor)
+                                                          xy_scaling_factor=xy_scaling_factor,
+                                                          crop_mask=crop_mask)
             except ContourOutOfBoundsException:
                 logging.warning(f'Structure {rtstruct["name"]} is out of bounds, ignoring contour!')
                 continue
 
             #  Generate mask name
             mask_filename = filename_converter.convert(f'mask_{rtstruct["name"]}')
-
-            if crop_mask:  # Crop and write both image and crop meta
-                try:
-                    mask, crop_meta = crop_mask_to_roi(mask_as_img=mask,
-                                                       xy_scaling_factor=xy_scaling_factor)
-                    nii_output_adapter.write(mask, f'{output_path}{mask_filename}', gzip)
-                    with open(f'{output_path}{mask_filename}' + ".json", "w") as f:
-                        f.write(json.dumps(crop_meta))
-                except Exception as e:
-                    print("Contour could not be cropped - skipping")
-            else:  # Only write image and do not crop
-                nii_output_adapter.write(mask, f'{output_path}{mask_filename}', gzip)
+            nii_output_adapter.write(mask, f'{output_path}{mask_filename}', gzip)
 
     if convert_original_dicom:
         logging.info('Converting original DICOM to nii')
