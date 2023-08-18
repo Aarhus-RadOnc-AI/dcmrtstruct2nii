@@ -101,7 +101,13 @@ def dcmrtstruct2nii(rtstruct_file,
             except ContourOutOfBoundsException:
                 logging.warning(f'Structure {rtstruct["name"]} is out of bounds, ignoring contour!')
                 continue
-
+            except TypeError:
+                logging.warning(f'Structure {rtstruct["name"]} is empty')
+                continue
+            except Exception as e:
+                logging.warning(f'Structure {rtstruct["name"]} raises exception {str(e)}')
+                continue
+            
             #  Generate mask name
             mask_filename = filename_converter.convert(f'mask_{rtstruct["name"]}')
             nii_output_adapter.write(mask, f'{output_path}{mask_filename}', gzip)
